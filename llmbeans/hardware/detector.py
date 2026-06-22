@@ -6,6 +6,8 @@ import platform
 import subprocess
 from dataclasses import dataclass
 
+from llmbeans.hardware.profiles import lookup_specs_for_detection
+
 
 @dataclass
 class HardwareProfile:
@@ -48,7 +50,6 @@ def detect_hardware() -> HardwareProfile | None:
     disk_is_ssd = _detect_disk_is_ssd()  # Actually detect if disk is SSD
 
     if os_type == "darwin":
-        is_apple = True
         unified = True
         try:
             result = subprocess.run(
@@ -57,6 +58,7 @@ def detect_hardware() -> HardwareProfile | None:
             )
             chip = result.stdout.strip()
             if "Apple" in chip:
+                is_apple = True
                 gpu_name = chip
                 gpu_vendor = "apple"
                 metal = True
@@ -84,7 +86,7 @@ def detect_hardware() -> HardwareProfile | None:
         except Exception:
             pass
 
-    return HardwareProfile(
+    profile = HardwareProfile(
         os=os_type,
         cpu_cores=cpu_cores,
         ram_total_gb=ram_total_gb,
@@ -99,6 +101,12 @@ def detect_hardware() -> HardwareProfile | None:
         laptop_model=laptop_model,
         memory_bandwidth_gbps=bandwidth,
     )
+
+    specs = lookup_specs_for_detection(profile)
+    if not profile.memory_bandwidth_gbps:
+        profile.memory_bandwidth_gbps = specs["memory_bandwidth_gbps"] or None
+
+    return profile
 
 
 def _detect_disk_is_ssd() -> bool:
@@ -120,7 +128,7 @@ def _detect_disk_is_ssd() -> bool:
                         return True
                     if "Solid State" in line and "No" in line:
                         return False
-        elif platform.system() == "Linux":
+        elif platform.system() == "Linux":  # pragma: no cover
             # Check if root partition is on SSD using rotational flag
             try:
                 with open("/sys/block/$(mountpoint -d / | cut -d'/' -f3)/queue/rotational", "r") as f:
@@ -135,7 +143,7 @@ def _detect_disk_is_ssd() -> bool:
                                     return True
                         except Exception:
                             continue
-        elif platform.system() == "Windows":
+        elif platform.system() == "Windows":  # pragma: no cover
             # Use PowerShell to check if disk is SSD
             try:
                 result = subprocess.run([

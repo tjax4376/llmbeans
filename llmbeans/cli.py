@@ -97,6 +97,11 @@ def prompt_tool_selection(available: list[str], hardware: HardwareProfileEntry |
 
 # ── Step 2: Model selection ───────────────────────────────────
 
+def _working_directory() -> Path:
+    """Return the process current working directory."""
+    return Path.cwd()
+
+
 def _scan_models_in_dir(directory: str) -> list[dict]:
     """Scan a directory for GGUF files and safetensors directories.
 
@@ -181,8 +186,11 @@ def prompt_model_selection(tool: str) -> str:
             # Show path relative to the source dir for readability
             src = m.get("source_dir", "")
             model_path = Path(m["path"])
-            if src and str(model_path).startswith(src + "/"):
-                display_name = str(model_path)[len(src) + 1:]
+            if src:
+                try:
+                    display_name = str(model_path.resolve().relative_to(Path(src).resolve()))
+                except ValueError:
+                    display_name = model_path.name
             else:
                 display_name = model_path.name
 
@@ -225,7 +233,40 @@ def prompt_model_selection(tool: str) -> str:
 
 
 def _prompt_custom_path() -> str:
-    """Prompt for a manual model path."""
+    """Prompt for a model path, starting with models found in the current directory."""
+    cwd = _working_directory()
+    cwd_models = _scan_models_in_dir(str(cwd))
+    if cwd_models:
+        console.print(
+            f"\n[green]Found {len(cwd_models)} model(s) in {cwd}:[/green]"
+        )
+        for i, m in enumerate(cwd_models, 1):
+            model_path = Path(m["path"])
+            try:
+                display_name = str(model_path.relative_to(cwd))
+            except ValueError:
+                display_name = model_path.name
+            console.print(
+                f"  [bold]{i}.[/bold] {display_name} "
+                f"[dim]({m['format']}, {m['size_gb']:.1f} GB)[/dim]"
+            )
+        console.print(
+            f"  [bold]{len(cwd_models) + 1}.[/bold] "
+            "[yellow]Enter a path manually[/yellow]"
+        )
+
+        while True:
+            choice = IntPrompt.ask(
+                f"Select model (1-{len(cwd_models) + 1})",
+                default=1,
+            )
+            if 1 <= choice <= len(cwd_models):
+                resolved = _resolve_model_dir(Path(cwd_models[choice - 1]["path"]))
+                return str(resolved)
+            if choice == len(cwd_models) + 1:
+                break
+            console.print("[red]Invalid selection.[/red]")
+
     while True:
         raw = Prompt.ask("[bold]Model path[/bold]").strip()
         if not raw:
@@ -381,7 +422,10 @@ def generate_summary(
 
     # Hardware info
     lines.append(f"Hardware: {hardware.name}")
-    lines.append(f"RAM: {hardware.ram_gb} GB ({hardware.ram_type})")
+    ram_line = f"RAM: {hardware.ram_gb} GB"
+    if hardware.ram_type:
+        ram_line += f" ({hardware.ram_type})"
+    lines.append(ram_line)
     gpu_str = hardware.gpu_name
     if hardware.unified_memory:
         gpu_str += " (Unified memory)"
@@ -445,11 +489,13 @@ def generate_summary(
 def write_scripts(
     rec: Recommendation,
     model: ModelInfo,
+    hardware: HardwareProfileEntry,
+    summary: str,
     output_dir: str | None = None,
 ) -> dict[str, str]:
     """Write launch scripts to disk. Returns dict of {type: path}."""
     if output_dir is None:
-        output_dir = os.path.join(os.getcwd(), "llmbeans-output")
+        output_dir = str(_working_directory() / "llmbeans-output")
 
     os.makedirs(output_dir, exist_ok=True)
     result = {}
@@ -492,18 +538,6 @@ def write_scripts(
 
     # Summary file
     summary_path = os.path.join(output_dir, "summary.txt")
-    summary = generate_summary(
-        model,
-        HardwareProfileEntry(
-            id="custom", name="Custom", year=2024,
-            ram_gb=0, ram_type="", cpu_cores=0, cpu_threads=0,
-            gpu_type="", gpu_name="", gpu_vram_gb=None, gpu_cores=0,
-            unified_memory=False, memory_bandwidth_gbps=0,
-            metal=False, cuda=False, cuda_compute=None,
-            vram_bandwidth_gbps=None, ssd_recommended=True, category="",
-        ),
-        rec,
-    )
     with open(summary_path, "w") as f:
         f.write(summary)
     result["summary"] = summary_path
@@ -534,8 +568,6 @@ def display_model_info(model: ModelInfo):
     table.add_column("Value")
 
     fmt = _safe_get(model, 'format')
-    if hasattr(fmt, 'value'):
-        fmt = fmt.value
     table.add_row("Format", fmt or "unknown")
     table.add_row("Architecture", _safe_get(model, 'architecture'))
     param_count = _safe_get(model, 'parameter_count', 0)
@@ -666,22 +698,12 @@ def main():
     if Confirm.ask("\nWrite launch scripts to disk?", default=True):
         output_dir = "llmbeans-output"
         try:
-            written = write_scripts(rec, model, output_dir)
+            written = write_scripts(rec, model, hardware, summary, output_dir)
             console.print()
             for ftype, fpath in written.items():
                 console.print(f"  [green]{ftype} script[/green] saved to: {fpath}")
         except Exception as e:
             console.print(f"[red]Error writing scripts: {e}[/red]")
-
-    # Always save summary
-    try:
-        summary_path = os.path.join("llmbeans-output", "summary.txt")
-        os.makedirs("llmbeans-output", exist_ok=True)
-        with open(summary_path, "w") as f:
-            f.write(summary)
-        console.print(f"  [green]Summary[/green] saved to: {os.path.abspath(summary_path)}")
-    except Exception:
-        pass
 
     console.print()
     console.print("[bold green]Done![/bold green] Happy inferencing.")

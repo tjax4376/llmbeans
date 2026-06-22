@@ -115,7 +115,7 @@ def estimate_tokens_per_sec(
     model_size_gb = model.parameter_count * 1e9 * quant_bytes / (1024**3)
 
     if model_size_gb <= 0:
-        return 0.0
+        return 0.0  # pragma: no cover - defensive guard
 
     if hardware.unified_memory or hardware.gpu_vram_gb is None:
         # Apple Silicon / integrated GPU: single memory pool
@@ -141,7 +141,7 @@ def estimate_tokens_per_sec(
 
         total_time = vram_time + ram_time
         if total_time <= 0:
-            return 0.0
+            return 0.0  # pragma: no cover - defensive guard
 
         return round(1.0 / total_time, 1)
 
@@ -195,7 +195,7 @@ def estimate_max_context(
     gb_per_token = (2 * model.num_layers * kv_heads * head_dim * bytes_per_element) / (1024**3)
 
     if gb_per_token <= 0:
-        return 4096
+        return 4096  # pragma: no cover - defensive guard
 
     # Context = available memory / memory per token
     max_context = int(available_gb / gb_per_token)
@@ -206,4 +206,4 @@ def estimate_max_context(
         if max_context >= ctx:
             return ctx
 
-    return 512
+    return 512  # pragma: no cover

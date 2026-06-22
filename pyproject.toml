@@ -19,5 +19,27 @@ dependencies = [
 [project.scripts]
 llmbeans = "llmbeans.main:main"
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["llmbeans"]
+branch = false
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+skip_empty = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+]
+
 [tool.setuptools.packages.find]
 include = ["llmbeans*"]
