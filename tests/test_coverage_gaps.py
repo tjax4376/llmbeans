@@ -299,6 +299,19 @@ def test_score_profile_match_gpu_substring_and_ram_near_miss():
     assert near_score >= 2
 
 
+def test_lookup_specs_apple_m1_fallback_ram_type():
+    hw = FakeDetectedHardware(
+        gpu_vendor="apple",
+        gpu_name="Apple M1",
+        is_apple_silicon=True,
+        unified_memory=True,
+        metal_supported=True,
+        ram_total_gb=16,
+    )
+    with patch("llmbeans.hardware.profiles.match_profile_for_detection", return_value=None):
+        assert lookup_specs_for_detection(hw)["ram_type"] == "LPDDR4X"
+
+
 def test_lookup_specs_apple_m2_fallback_ram_type():
     hw = FakeDetectedHardware(
         gpu_vendor="apple",
@@ -501,7 +514,7 @@ def test_output_generate_summary_unified(apple_hardware, sample_model, sample_re
     from llmbeans.output.script_gen import generate_summary as output_summary
     apple_hardware.gpu_vram_gb = None
     text = output_summary(sample_model, apple_hardware, sample_recommendation)
-    assert "Unified Mem" in text
+    assert "Unified memory" in text
 
 
 def test_mlx_safetensors_and_vllm_branches(sample_model, apple_hardware, nvidia_hardware):

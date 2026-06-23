@@ -151,7 +151,7 @@ def recommend(
     extra_config = tool_result.get("extra_config", None)
 
     # ── Warnings ───────────────────────────────────────────────
-    warnings = []
+    warnings = list(tool_result.get("warnings", []))
 
     if memory_breakdown["total_gb"] > hardware.ram_gb * 0.9:
         warnings.append(

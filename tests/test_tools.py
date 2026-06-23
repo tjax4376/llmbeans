@@ -163,6 +163,7 @@ def test_mlx_local_and_remote(sample_model, apple_hardware):
         quality_mode="balanced",
     )
     assert "mlx-community" in local["command"]
+    assert any("Guessed MLX repo" in w for w in local["warnings"])
 
     sample_model.is_remote = True
     remote = mlx_flags(

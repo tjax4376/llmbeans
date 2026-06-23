@@ -41,7 +41,7 @@ class TestCLI(unittest.TestCase):
     @patch('llmbeans.cli.prompt_tool_selection')
     @patch('llmbeans.cli.get_available_tools')
     @patch('llmbeans.cli.prompt_model_selection')
-    @patch('llmbeans.cli.scan_model')
+    @patch('llmbeans.cli.scan')
     @patch('llmbeans.cli.detect_hardware')
     @patch('llmbeans.cli.get_hardware_profiles')
     @patch('llmbeans.cli.prompt_hardware_selection')
@@ -60,7 +60,7 @@ class TestCLI(unittest.TestCase):
         mock_prompt_hardware_selection,
         mock_get_hardware_profiles,
         mock_detect_hardware,
-        mock_scan_model,
+        mock_scan,
         mock_prompt_model_selection,
         mock_get_available_tools,
         mock_prompt_tool_selection,
@@ -83,7 +83,7 @@ class TestCLI(unittest.TestCase):
         mock_model_info.estimated_vram_gb = 4.5
         mock_model_info.source_path = '/fake/path/to/model.gguf'
         mock_model_info.is_remote = False
-        mock_scan_model.return_value = mock_model_info
+        mock_scan.return_value = mock_model_info
 
         # Mock hardware info
         mock_hardware_info = MagicMock(spec=HardwareProfileEntry)
@@ -156,7 +156,7 @@ class TestCLI(unittest.TestCase):
     @patch('llmbeans.cli.prompt_tool_selection')
     @patch('llmbeans.cli.get_available_tools')
     @patch('llmbeans.cli.prompt_model_selection')
-    @patch('llmbeans.cli.scan_model')
+    @patch('llmbeans.cli.scan')
     @patch('llmbeans.cli.detect_hardware')
     @patch('llmbeans.cli.get_hardware_profiles')
     @patch('llmbeans.cli.prompt_hardware_selection')
@@ -173,7 +173,7 @@ class TestCLI(unittest.TestCase):
         mock_prompt_hardware_selection,
         mock_get_hardware_profiles,
         mock_detect_hardware,
-        mock_scan_model,
+        mock_scan,
         mock_prompt_model_selection,
         mock_get_available_tools,
         mock_prompt_tool_selection,
@@ -193,7 +193,7 @@ class TestCLI(unittest.TestCase):
         mock_model_info.estimated_vram_gb = 4.5
         mock_model_info.source_path = '/fake/path/to/model.gguf'
         mock_model_info.is_remote = False
-        mock_scan_model.return_value = mock_model_info
+        mock_scan.return_value = mock_model_info
 
         mock_prompt_hardware_selection.return_value = MagicMock(spec=HardwareProfileEntry)
         mock_prompt_quality_mode.return_value = 'balanced'

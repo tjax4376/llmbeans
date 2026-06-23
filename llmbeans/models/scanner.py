@@ -580,7 +580,3 @@ def scan(source: str) -> ModelInfo:
         return _scan_hf_repo(source)
     else:
         raise ValueError(f"Unsupported format: {fmt}")
-
-
-# Alias for backwards compatibility
-scan_model = scan

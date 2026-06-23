@@ -91,6 +91,27 @@ def test_lookup_specs_for_detection_apple():
     assert specs["ram_type"] == "LPDDR5X"
 
 
+def test_lookup_specs_apple_ram_type_fallbacks():
+    cases = [
+        ("Apple M3", "LPDDR5X"),
+        ("Apple M2", "LPDDR5"),
+        ("Apple M1", "LPDDR4X"),
+        ("Apple A18", "LPDDR5"),
+    ]
+    for gpu_name, expected in cases:
+        hw = FakeDetectedHardware(
+            gpu_vendor="apple",
+            gpu_name=gpu_name,
+            gpu_vram_gb=None,
+            is_apple_silicon=True,
+            unified_memory=True,
+            metal_supported=True,
+            ram_total_gb=16,
+        )
+        with patch("llmbeans.hardware.profiles.match_profile_for_detection", return_value=None):
+            assert lookup_specs_for_detection(hw)["ram_type"] == expected
+
+
 def test_from_detection_nvidia():
     profile = from_detection(FakeDetectedHardware())
     assert profile.cuda is True

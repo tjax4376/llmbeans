@@ -3,23 +3,22 @@
 import os
 import tempfile
 
+from llmbeans.cli import generate_summary, write_scripts
 from llmbeans.output.script_gen import (
     generate_batch_script,
     generate_shell_script,
-    generate_summary,
-    write_scripts,
 )
 
 
 def test_generate_summary_and_scripts(sample_model, nvidia_hardware, sample_recommendation):
     summary = generate_summary(sample_model, nvidia_hardware, sample_recommendation)
-    assert "llmbeans" in summary
+    assert sample_model.name in summary
     assert "Warnings" in summary
     assert sample_recommendation.command in summary
 
     shell = generate_shell_script(sample_model, nvidia_hardware, sample_recommendation)
     assert shell.startswith("#!/usr/bin/env bash")
-    assert "export" not in shell  # no OLLAMA/CUDA flags in sample
+    assert "export" not in shell
 
     batch = generate_batch_script(sample_model, nvidia_hardware, sample_recommendation)
     assert batch.startswith("@echo off")
@@ -43,8 +42,16 @@ def test_generate_shell_and_batch_with_env_flags(sample_model, nvidia_hardware, 
 
 def test_write_scripts_creates_files(sample_model, nvidia_hardware, sample_recommendation):
     sample_recommendation.extra_config = '{"load": {"gpu_layers": 32}}'
+    sample_recommendation.hosting_tool = "lmstudio"
+    summary = generate_summary(sample_model, nvidia_hardware, sample_recommendation)
     with tempfile.TemporaryDirectory() as tmpdir:
-        files = write_scripts(sample_model, nvidia_hardware, sample_recommendation, output_dir=tmpdir)
+        files = write_scripts(
+            sample_recommendation,
+            sample_model,
+            nvidia_hardware,
+            summary,
+            output_dir=tmpdir,
+        )
         assert os.path.exists(files["summary"])
         assert os.path.exists(files["shell"])
         assert os.path.exists(files["batch"])

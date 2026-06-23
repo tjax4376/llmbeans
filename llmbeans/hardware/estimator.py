@@ -21,6 +21,13 @@ from llmbeans.hardware.profiles import HardwareProfileEntry
 from llmbeans.models.scanner import ModelInfo
 
 
+# Baseline OS + runtime memory reserved during inference (GB).
+RUNTIME_OVERHEAD_GB = 1.5
+
+# Fraction of peak memory bandwidth achievable during autoregressive decode.
+INFERENCE_BANDWIDTH_EFFICIENCY = 0.6
+
+
 # ── Memory Estimation ─────────────────────────────────────────
 
 def estimate_kv_cache_gb(
@@ -76,7 +83,7 @@ def estimate_total_memory_gb(
                 bytes_per_element=bytes_per if context_length > 0 else 2.0,
             )
 
-    overhead_gb = 1.5  # OS + runtime baseline
+    overhead_gb = RUNTIME_OVERHEAD_GB
     total_gb = weights_gb + kv_cache_gb + overhead_gb
 
     return {
@@ -122,7 +129,7 @@ def estimate_tokens_per_sec(
         # Bandwidth-limited: tokens/s = bandwidth / model_size
         bandwidth = hardware.memory_bandwidth_gbps
         # Apply efficiency factor (not all bandwidth goes to inference)
-        efficiency = 0.6  # ~60% effective bandwidth for inference
+        efficiency = INFERENCE_BANDWIDTH_EFFICIENCY
         return round((bandwidth * efficiency) / model_size_gb, 1)
     else:
         # Discrete GPU + system RAM
@@ -136,8 +143,8 @@ def estimate_tokens_per_sec(
         ram_model_gb = model_size_gb * (1.0 - offload_ratio)
 
         # Time for each portion (sequential bottleneck)
-        vram_time = vram_model_gb / (vram_bandwidth * 0.6) if offload_ratio > 0 else 0
-        ram_time = ram_model_gb / (ram_bandwidth * 0.6) if offload_ratio < 1 else 0
+        vram_time = vram_model_gb / (vram_bandwidth * INFERENCE_BANDWIDTH_EFFICIENCY) if offload_ratio > 0 else 0
+        ram_time = ram_model_gb / (ram_bandwidth * INFERENCE_BANDWIDTH_EFFICIENCY) if offload_ratio < 1 else 0
 
         total_time = vram_time + ram_time
         if total_time <= 0:

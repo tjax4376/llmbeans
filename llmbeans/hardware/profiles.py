@@ -8,6 +8,7 @@ import json
 import platform
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -38,10 +39,16 @@ class HardwareProfileEntry:
     category: str
 
 
+@lru_cache(maxsize=1)
+def _profiles_json() -> dict:
+    """Parse profiles.json once per process; callers build fresh entry objects."""
+    with open(PROFILES_PATH) as f:
+        return json.load(f)
+
+
 def load_profiles() -> list[HardwareProfileEntry]:
     """Load all hardware profiles from profiles.json."""
-    with open(PROFILES_PATH) as f:
-        data = json.load(f)
+    data = _profiles_json()
 
     profiles = []
     for category, entries in data.items():
@@ -87,9 +94,7 @@ def get_profile_by_id(profile_id: str) -> Optional[HardwareProfileEntry]:
 
 def get_categories() -> list[str]:
     """Return available profile categories."""
-    with open(PROFILES_PATH) as f:
-        data = json.load(f)
-    return [k for k in data if k != "meta"]
+    return [k for k in _profiles_json() if k != "meta"]
 
 
 def _gpu_match_tokens(name: str) -> set[str]:
@@ -166,6 +171,18 @@ def match_profile_for_detection(hw) -> Optional[HardwareProfileEntry]:
     return candidates[0][1]
 
 
+def _apple_ram_type_fallback(gpu_name: str) -> str:
+    """Infer Apple unified-memory type when profile DB has no match."""
+    name = gpu_name.lower()
+    if "m4" in name or "m3" in name:
+        return "LPDDR5X"
+    if "m2" in name:
+        return "LPDDR5"
+    if "m1" in name:
+        return "LPDDR4X"
+    return "LPDDR5"
+
+
 def lookup_specs_for_detection(hw) -> dict:
     """Resolve bandwidth, RAM type, and CUDA flags for auto-detected hardware."""
     matched = match_profile_for_detection(hw)
@@ -187,7 +204,7 @@ def lookup_specs_for_detection(hw) -> dict:
     cuda_compute = matched.cuda_compute if matched else None
 
     if is_apple and not ram_type:
-        ram_type = "LPDDR5X" if "m4" in gpu_name or "m3" in gpu_name else "LPDDR5"
+        ram_type = _apple_ram_type_fallback(gpu_name)
     elif not ram_type and cuda:
         ram_type = "DDR5"
 

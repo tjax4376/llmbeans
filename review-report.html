@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>llmbeans — Deep Code Review Report</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; line-height: 1.6; }
+  .container { max-width: 960px; margin: 0 auto; padding: 2rem; }
+  h1 { color: #58a6ff; font-size: 1.8rem; margin-bottom: 0.25rem; }
+  h2 { color: #79c0ff; font-size: 1.3rem; margin: 2rem 0 0.75rem; border-bottom: 1px solid #21262d; padding-bottom: 0.4rem; }
+  h3 { color: #d2a8ff; font-size: 1.05rem; margin: 1.5rem 0 0.5rem; }
+  .meta { color: #8b949e; font-size: 0.9rem; margin-bottom: 1.5rem; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+  .stat-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1rem; text-align: center; }
+  .stat-card .num { font-size: 1.8rem; font-weight: 700; }
+  .stat-card .label { font-size: 0.8rem; color: #8b949e; }
+  .critical .num { color: #f85149; }
+  .warning .num { color: #d29922; }
+  .suggestion .num { color: #58a6ff; }
+  .positive .num { color: #3fb950; }
+  .finding { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1rem; margin: 0.75rem 0; }
+  .finding .severity { display: inline-block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; padding: 0.15rem 0.5rem; border-radius: 4px; margin-right: 0.5rem; }
+  .sev-critical { background: #f8514920; color: #f85149; border: 1px solid #f8514940; }
+  .sev-warning { background: #d2992220; color: #d29922; border: 1px solid #d2992240; }
+  .sev-suggestion { background: #58a6ff20; color: #58a6ff; border: 1px solid #58a6ff40; }
+  .sev-positive { background: #3fb95020; color: #3fb950; border: 1px solid #3fb95040; }
+  .finding .location { font-family: 'SF Mono', SFMono-Regular, Consolas, monospace; font-size: 0.85rem; color: #d2a8ff; }
+  .finding .category { font-size: 0.75rem; color: #8b949e; font-style: italic; }
+  .finding .description { margin: 0.4rem 0; }
+  .finding .fix { background: #0d1117; border-left: 3px solid #3fb950; padding: 0.4rem 0.75rem; margin-top: 0.4rem; font-size: 0.9rem; }
+  .scan-block { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1rem; margin: 0.75rem 0; }
+  .scan-block code { font-family: 'SF Mono', SFMono-Regular, Consolas, monospace; font-size: 0.8rem; color: #e6edf3; }
+  .checklist-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.5rem; }
+  .checklist-item { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.85rem; }
+  .checklist-item .status { float: right; font-weight: 700; font-size: 0.75rem; }
+  .status-clean { color: #3fb950; }
+  .status-review { color: #d29922; }
+  .status-n/a { color: #484f58; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>llmbeans — Deep Code Review</h1>
+<p class="meta">Branch: main &rarr; origin/main &middot; Reviewed: full codebase (initial commit &rarr; HEAD) &middot; 2026-06-22</p>
+
+<h2>Summary</h2>
+<div class="stats">
+  <div class="stat-card"><div class="num">28</div><div class="label">Files Changed</div></div>
+  <div class="stat-card"><div class="num">+2776</div><div class="label">Lines Added</div></div>
+  <div class="stat-card"><div class="num">-73</div><div class="label">Lines Removed</div></div>
+  <div class="stat-card critical"><div class="num">0</div><div class="label">Critical</div></div>
+  <div class="stat-card warning"><div class="num">4</div><div class="label">Warnings</div></div>
+  <div class="stat-card suggestion"><div class="num">7</div><div class="label">Suggestions</div></div>
+  <div class="stat-card positive"><div class="num">6</div><div class="label">Positive</div></div>
+</div>
+
+<h2>Warnings</h2>
+
+<div class="finding">
+  <span class="severity sev-warning">Warning</span>
+  <span class="location">llmbeans/recommenders/tools/vllm.py:4, mlx.py:4, lmstudio.py:9</span>
+  <span class="category">Inconsistent import source for register_tool</span>
+  <p class="description">
+    Three tool modules (<code>vllm.py</code>, <code>mlx.py</code>, <code>lmstudio.py</code>) import <code>register_tool</code> from <code>llmbeans.recommenders.engine</code>, while the other two (<code>llamacpp.py</code>, <code>ollama.py</code>) import it from <code>llmbeans.recommenders.registry</code> where it's actually defined. The engine re-exports it, so it works, but this creates a fragile coupling — if the re-export is ever removed or the engine import order changes, three tools silently break at registration time with no clear error.
+  </p>
+  <div class="fix">Fix: All tool modules should import <code>register_tool</code> from <code>llmbeans.recommenders.registry</code> directly, matching the actual definition site.</div>
+</div>
+
+<div class="finding">
+  <span class="severity sev-warning">Warning</span>
+  <span class="location">llmbeans/recommenders/tools/lmstudio.py:11,50</span>
+  <span class="category">Duplicate import — json imported at module level and inside function</span>
+  <p class="description">
+    <code>import json</code> appears at line 11 (module scope) and again at line 50 (inside <code>generate_flags</code>). The module-level import already makes <code>json</code> available in-function. The redundant inline import is dead code that adds noise and could confuse future maintainers into thinking json isn't already available.
+  </p>
+  <div class="fix">Remove the <code>import json</code> at line 50 inside <code>generate_flags</code>.</div>
+</div>
+
+<div class="finding">
+  <span class="severity sev-warning">Warning</span>
+  <span class="location">llmbeans/cli.py + llmbeans/output/script_gen.py + llmbeans/recommenders/script_gen.py</span>
+  <span class="category">Duplicated logic — three copies of generate_summary / write_scripts</span>
+  <p class="description">
+    The codebase contains three separate implementations of <code>generate_summary</code> (cli.py:403, output/script_gen.py:17) and three of <code>write_scripts</code> (cli.py:489, output/script_gen.py:169, recommenders/script_gen.py:9). The cli.py versions are the most complete (Rich-formatted, with memory breakdown, warnings, extra config). The output/script_gen.py versions are plain-text alternatives. The recommenders/script_gen.py version is a minimal stub. This triplication means bug fixes and format changes must be applied in three places, and they've already diverged in output format and completeness.
+  </p>
+  <div class="fix">Consolidate to a single canonical implementation — the Rich-formatted one in <code>cli.py</code> is the most complete. Have <code>output/script_gen.py</code> either re-export from <code>cli.py</code> or be removed entirely. Delete the stub in <code>recommenders/script_gen.py</code>.</div>
+</div>
+
+<div class="finding">
+  <span class="severity sev-warning">Warning</span>
+  <span class="location">llmbeans/models/scanner.py:586</span>
+  <span class="category">scan_model alias creates ambiguity with cli.py import</span>
+  <p class="description">
+    <code>scan_model = scan</code> at line 586 creates a module-level alias. Meanwhile, <code>cli.py</code> imports <code>scan_model</code> from the scanner module (line 23). This works but is fragile — if the alias is ever removed or renamed, the cli.py import breaks silently. The alias exists for "backwards compatibility" but there's no indication of what it's backwards-compatible with (the project is v0.1.0).
+  </p>
+  <div class="fix">Either remove the alias and update cli.py to import <code>scan</code> directly, or add a comment explaining what the alias is for. At v0.1.0, backwards-compat aliases add maintenance cost with little benefit.</div>
+</div>
+
+<h2>Suggestions</h2>
+
+<div class="finding">
+  <span class="severity sev-suggestion">Suggestion</span>
+  <span class="location">llmbeans/hardware/detector.py:134</span>
+  <span class="category">Broken shell interpolation in Python string literal</span>
+  <p class="description">
+    The Linux SSD detection path at line 134 uses <code>$(mountpoint -d / | cut -d'/' -f3)</code> inside a Python f-string path. This is shell syntax that will never be interpreted — it's passed literally to <code>open()</code> as a filesystem path, which will always fail, causing the function to fall through to the block-device loop. The code "works" because of the fallback, but the primary detection path is dead code.
+  </p>
+  <div class="fix">Use <code>subprocess.run(["mountpoint", "-d", "/"], ...)</code> to get the mountpoint ID, then extract the device name, rather than embedding shell interpolation in a Python string.</div>
+</div>
+
+<div class="finding">
+  <span class="severity sev-suggestion">Suggestion</span>
+  <span class="location">llmbeans/hardware/profiles.py:41–72</span>
+  <span class="category">load_profiles() called repeatedly without caching</span>
+  <p class="description">
+    <code>load_profiles()</code> opens and parses a 1131-line JSON file on every call. It's called by <code>get_profiles_by_category</code>, <code>get_profile_by_id</code>, <code>get_categories</code>, <code>match_profile_for_detection</code> (which iterates all profiles), and indirectly by <code>lookup_specs_for_detection</code>. In the CLI flow, this means the JSON is parsed 5+ times during a single run. The data is static and small — caching would be trivial.
+  </p>
+  <div class="fix">Add <code>functools.lru_cache</code> or a module-level singleton to cache the parsed profiles after first load.</div>
+</div>
+
+<div class="finding">
+  <span class="severity sev-suggestion">Suggestion</span>
+  <span class="location">llmbeans/hardware/estimator.py:79</span>
+  <span class="category">Magic constant — overhead_gb = 1.5</span>
+  <p class="description">
+    The OS + runtime overhead is hardcoded as <code>1.5</code> GB. This varies significantly by platform (macOS uses more RAM than a minimal Linux server) and by tool (llama.cpp vs vLLM have very different overhead profiles).
+  </p>
+  <div class="fix">Extract to a named constant <code>DEFAULT_OS_OVERHEAD_GB = 1.5</code> with a docstring, or make it configurable per hosting tool.</div>
+</div>
+
+<div class="finding">
+  <span class="severity sev-suggestion">Suggestion</span>
+  <span class="location">llmbeans/hardware/estimator.py:125</span>
+  <span class="category">Magic constant — efficiency = 0.6</span>
+  <p class="description">
+    The inference efficiency factor of 0.6 (60% effective bandwidth) is hardcoded with a comment but not named. This is a significant tuning parameter that affects all performance estimates.
+  </p>
+  <div class="fix">Extract to <code>INFERENCE_BANDWIDTH_EFFICIENCY = 0.6</code> with a docstring citing the source/assumption.</div>
+</div>
+
+<div class="finding">
+  <span class="severity sev-suggestion">Suggestion</span>
+  <span class="location">run_cli_demo.py, test_cli.py, test_cli_imports.py, test_cli_integration.py</span>
+  <span class="category">Root-level test/demo scripts are stale and reference removed APIs</span>
+  <p class="description">
+    <code>test_cli_imports.py</code> references <code>cli.Colors</code>, <code>cli.print_header</code>, etc. — functions that no longer exist in the current cli.py (which now uses Rich). <code>test_cli_integration.py</code> checks for strings like <code>"llmbeans - Local LLM Configuration Generator"</code> that don't match the current output. <code>run_cli_demo.py</code> references <code>llmbeans.hardware.detector.HardwareInfo</code> which doesn't exist (the actual class is <code>HardwareProfile</code>). These scripts will fail at runtime and create confusion.
+  </p>
+  <div class="fix">Either update these scripts to match the current API, or remove them. If they serve as manual dev tools, add a README comment explaining they need maintenance after CLI changes.</div>
+</div>
+
+<div class="finding">
+  <span class="severity sev-suggestion">Suggestion</span>
+  <span class="location">llmbeans/recommenders/tools/mlx.py:36–37</span>
+  <span class="category">Fragile model reference construction for GGUF models</span>
+  <p class="description">
+    When the model is GGUF format, the code constructs <code>f"mlx-community/{model.name}"</code> as the model reference. This assumes the model name matches the HF community repo naming convention, which is often not the case (e.g., a local file named <code>Llama-3-8B-Q4_K_M.gguf</code> would produce <code>mlx-community/Llama-3-8B-Q4_K_M</code> which likely doesn't exist).
+  </p>
+  <div class="fix">Add a warning or fallback when constructing synthetic HF repo names from local filenames. Consider requiring the user to provide an explicit HF repo ID for MLX.</div>
+</div>
+
+<div class="finding">
+  <span class="severity sev-suggestion">Suggestion</span>
+  <span class="location">llmbeans/hardware/profiles.py:189–190</span>
+  <span class="category">Incomplete Apple Silicon RAM type detection</span>
+  <p class="description">
+    The RAM type inference for Apple Silicon only checks for "m4" and "m3" in the GPU name. M1 and M2 Macs (still widely used) would fall through to "LPDDR5", but M1 Macs use LPDDR4X. The 2024 MacBook Air (M3) uses LPDDR5, not LPDDR5X.
+  </p>
+  <div class="fix">Expand the detection to cover M1 (LPDDR4X), M2 (LPDDR5), M3 (LPDDR5), M4 (LPDDR5X), or use the matched profile's ram_type as the primary source instead of inferring from chip name.</div>
+</div>
+
+<h2>Auto-Scan Results</h2>
+<div class="scan-block">
+  <p><strong>Static analysis (scan_diff.py) — 4 findings, all in test code:</strong></p>
+  <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+    <li><code>tests/test_cli_helpers.py:433</code> — <code>exec(compile(...))</code> used to test <code>__main__</code> guard. Acceptable in test context.</li>
+    <li><code>tests/test_main.py:45</code> — Same <code>exec(compile(...))</code> pattern for <code>__main__</code> guard test. Acceptable in test context.</li>
+  </ul>
+  <p style="margin-top: 0.5rem; color: #8b949e; font-size: 0.85rem;">No secrets, SQL injection, shell injection, pickle usage, or debug statements detected. The <code>exec</code> calls are confined to tests exercising the <code>if __name__ == '__main__'</code> pattern and pose no security risk.</p>
+</div>
+
+<h2>Positive Findings</h2>
+
+<div class="finding">
+  <span class="severity sev-positive">Positive</span>
+  <span class="category">Test coverage</span>
+  <p class="description">170 tests covering all major modules (scanner, detector, estimator, profiles, engine, tools, CLI helpers, output generation) with 100% code coverage enforced in pyproject.toml. Tests use realistic fixtures and test both happy and error paths.</p>
+</div>
+
+<div class="finding">
+  <span class="severity sev-positive">Positive</span>
+  <span class="category">Architecture &amp; separation of concerns</span>
+  <p class="description">Clean layered architecture: models (scanner) &rarr; hardware (detector/profiles/estimator) &rarr; recommenders (engine + tool plugins) &rarr; output (script_gen) &rarr; CLI. The registry pattern for tool plugins is well-designed and makes adding new hosting tools straightforward.</p>
+</div>
+
+<div class="finding">
+  <span class="severity sev-positive">Positive</span>
+  <span class="category">Error handling in CLI</span>
+  <p class="description">The main CLI flow (cli.py:644-710) wraps model scanning and recommendation generation in try/except with user-friendly error messages and proper sys.exit codes. Hardware detection failures are gracefully handled (lines 671-676).</p>
+</div>
+
+<div class="finding">
+  <span class="severity sev-positive">Positive</span>
+  <span class="category">GGUF metadata extraction</span>
+  <p class="description">The GGUF scanner (scanner.py:215-362) has robust field access with type-aware get_str/get_int/get_float helpers, proper fallback chains for context length across different architecture naming conventions, and defensive exception handling throughout.</p>
+</div>
+
+<div class="finding">
+  <span class="severity sev-positive">Positive</span>
+  <span class="category">Hardware profile matching</span>
+  <p class="description">The profile matching system (profiles.py:113-166) uses a multi-signal scoring approach (GPU name substring, token overlap, RAM proximity, VRAM match) that's much more robust than simple exact matching. The scoring weights are well-chosen.</p>
+</div>
+
+<div class="finding">
+  <span class="severity sev-positive">Positive</span>
+  <span class="category">Safetensors parameter counting</span>
+  <p class="description">The <code>_count_params_from_index</code> function (scanner.py:441-485) efficiently reads tensor shapes from safetensors headers without loading actual data, handles both sharded and single-file layouts, and gracefully handles missing files.</p>
+</div>
+
+<h2>Highest-Signal Areas Checked</h2>
+<div class="checklist-grid">
+  <div class="checklist-item"><span class="status status-n/a">N/A</span> 1. New public endpoints (no web server)</div>
+  <div class="checklist-item"><span class="status status-n/a">N/A</span> 2. New auth/permission checks (no auth system)</div>
+  <div class="checklist-item"><span class="status status-n/a">N/A</span> 3. New database writes (no database)</div>
+  <div class="checklist-item"><span class="status status-n/a">N/A</span> 4. New file uploads (no upload handling)</div>
+  <div class="checklist-item"><span class="status status-n/a">N/A</span> 5. New background jobs (no job system)</div>
+  <div class="checklist-item"><span class="status status-review">Review</span> 6. External API calls — HF Hub in scanner.py (timeout/validation OK)</div>
+  <div class="checklist-item"><span class="status status-n/a">N/A</span> 7. New data migrations (no database)</div>
+  <div class="checklist-item"><span class="status status-review">Review</span> 8. User input parsing — CLI prompts validated, model paths checked</div>
+  <div class="checklist-item"><span class="status status-review">Review</span> 9. Dependencies — gguf, safetensors, huggingface-hub, rich (all appropriate)</div>
+  <div class="checklist-item"><span class="status status-review">Review</span> 10. Cross-cutting helpers — _safe_get, scan_model alias (see suggestions)</div>
+</div>
+
+<h2>35-Item Checklist Summary</h2>
+<div class="checklist-grid">
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 1. Untrusted input → sensitive APIs</div>
+  <div class="checklist-item"><span class="status status-n/a">N/A</span> 2. AuthN without AuthZ</div>
+  <div class="checklist-item"><span class="status status-n/a">N/A</span> 3. Tenant isolation</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 4. Tainted data flows</div>
+  <div class="checklist-item"><span class="status status-n/a">N/A</span> 5. Non-idempotent mutations</div>
+  <div class="checklist-item"><span class="status status-n/a">N/A</span> 6. Race conditions</div>
+  <div class="checklist-item"><span class="status status-n/a">N/A</span> 7. Transactions</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 8. Silent swallowed errors</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 9. Overbroad error messages</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 10. Bad logging (no logging present)</div>
+  <div class="checklist-item"><span class="status status-n/a">N/A</span> 11. N+1 queries</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 12. Unbounded loops/lists</div>
+  <div class="checklist-item"><span class="status status-n/a">N/A</span> 13. Pagination</div>
+  <div class="checklist-item"><span class="status status-n/a">N/A</span> 14. Rate limiting</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 15. Unsafe file handling</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 16. Date/time bugs</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 17. Null/empty-state assumptions</div>
+  <div class="checklist-item"><span class="status status-review">Review</span> 18. Magic constants (2 findings)</div>
+  <div class="checklist-item"><span class="status status-review">Review</span> 19. Duplicated logic (3x generate_summary/write_scripts)</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 20. Side effects in pure functions</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 21. Poor naming</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 22. Too much abstraction</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 23. Too little abstraction</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 24. Tests proving implementation</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 25. Missing negative tests</div>
+  <div class="checklist-item"><span class="status status-n/a">N/A</span> 26. Fragile migrations</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 27. Backward compatibility</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 28. External API assumptions</div>
+  <div class="checklist-item"><span class="status status-n/a">N/A</span> 29. Cache invalidation</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 30. Config/environment drift</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 31. Secrets in code</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 32. Dependency risk</div>
+  <div class="checklist-item"><span class="status status-clean">Clean</span> 33. No observability (CLI tool — acceptable)</div>
+  <div class="checklist-item"><span class="status status-n/a">N/A</span> 34. Frontend state bugs</div>
+  <div class="checklist-item"><span class="status status-n/a">N/A</span> 35. Accessibility (CLI tool)</div>
+</div>
+
+<h2>Thinking-Level Anti-Patterns</h2>
+<div class="finding">
+  <span class="severity sev-suggestion">Leaky Abstraction — Minor</span>
+  <p class="description">
+    The <code>_safe_get</code> helper in cli.py (line 550) is a workaround for test mocks not matching production types. It inspects <code>val.value</code> as a fallback, which leaks the internal structure of Rich renderables into display logic. This is a minor leak — the function is well-scoped to display code and doesn't propagate.
+  </p>
+</div>
+<div class="finding">
+  <span class="severity status-clean">Local Optimization — None detected</span>
+  <p class="description">No evidence of local optimization at the expense of system-wide concerns. The estimation formulas are appropriately simple for the domain.</p>
+</div>
+<div class="finding">
+  <span class="severity status-clean">Premature Generalization — None detected</span>
+  <p class="description">The abstraction level is appropriate. The registry pattern for tools is justified (5 tool implementations). The dataclasses are concrete and well-scoped. No abstract-factory-for-one-implementation anti-patterns found.</p>
+</div>
+
+<p class="meta" style="margin-top: 2rem;">Generated by OWL Deep Code Review &middot; 2026-06-22</p>
+</div>
+</body>
+</html>

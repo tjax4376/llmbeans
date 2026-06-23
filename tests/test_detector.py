@@ -10,6 +10,7 @@ from llmbeans.hardware.detector import (
     _detect_linux_gpu,
     _detect_mac_model,
     _detect_windows_gpu,
+    _linux_root_block_device,
     detect_hardware,
 )
 
@@ -117,6 +118,66 @@ def test_detect_disk_is_ssd_darwin_no():
          patch("llmbeans.hardware.detector.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0, stdout="Solid State:               No\n")
         assert _detect_disk_is_ssd() is False
+
+
+def test_detect_disk_is_ssd_linux_root_device():
+    with patch("llmbeans.hardware.detector.platform.system", return_value="Linux"), \
+         patch("llmbeans.hardware.detector._linux_root_block_device", return_value="nvme0n1"), \
+         patch("builtins.open", mock_open(read_data="0\n")):
+        assert _detect_disk_is_ssd() is True
+
+
+def test_linux_root_block_device_from_findmnt():
+    with patch("llmbeans.hardware.detector.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stdout="/dev/nvme0n1p2\n")
+        assert _linux_root_block_device() == "nvme0n1"
+
+
+def test_linux_root_block_device_from_mountpoint_dev_id():
+    def run_side_effect(cmd, *args, **kwargs):
+        if cmd[0] == "findmnt":
+            return MagicMock(returncode=1, stdout="")
+        if cmd[0] == "mountpoint":
+            return MagicMock(returncode=0, stdout="259:0\n")
+        raise AssertionError(f"unexpected command: {cmd}")
+
+    with patch("llmbeans.hardware.detector.subprocess.run", side_effect=run_side_effect), \
+         patch("llmbeans.hardware.detector.os.listdir", return_value=["nvme0n1"]), \
+         patch("builtins.open", mock_open(read_data="259:0\n")):
+        assert _linux_root_block_device() == "nvme0n1"
+
+
+def test_linux_block_device_name_variants():
+    from llmbeans.hardware.detector import _linux_block_device_name
+
+    assert _linux_block_device_name("/dev/mmcblk0p1") == "mmcblk0"
+    assert _linux_block_device_name("/dev/sda1") == "sda"
+
+
+def test_linux_root_block_device_mountpoint_no_sysfs_match():
+    def run_side_effect(cmd, *args, **kwargs):
+        if cmd[0] == "findmnt":
+            return MagicMock(returncode=1, stdout="")
+        if cmd[0] == "mountpoint":
+            return MagicMock(returncode=0, stdout="259:0\n")
+        raise AssertionError(f"unexpected command: {cmd}")
+
+    with patch("llmbeans.hardware.detector.subprocess.run", side_effect=run_side_effect), \
+         patch("llmbeans.hardware.detector.os.listdir", return_value=["sda"]), \
+         patch("builtins.open", side_effect=OSError("denied")):
+        assert _linux_root_block_device() is None
+
+
+def test_linux_root_block_device_mountpoint_command_fails():
+    def run_side_effect(cmd, *args, **kwargs):
+        if cmd[0] == "findmnt":
+            return MagicMock(returncode=1, stdout="")
+        if cmd[0] == "mountpoint":
+            return MagicMock(returncode=1, stdout="")
+        raise AssertionError(f"unexpected command: {cmd}")
+
+    with patch("llmbeans.hardware.detector.subprocess.run", side_effect=run_side_effect):
+        assert _linux_root_block_device() is None
 
 
 def test_detect_disk_is_ssd_linux_fallback():

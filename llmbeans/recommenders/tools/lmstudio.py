@@ -6,9 +6,9 @@ for advanced configuration. Also outputs llama.cpp compatible flags
 since LM Studio uses llama.cpp under the hood.
 """
 
-from llmbeans.recommenders.engine import register_tool
-
 import json
+
+from llmbeans.recommenders.registry import register_tool
 
 
 @register_tool("lmstudio")
@@ -47,7 +47,6 @@ def generate_flags(model, hardware, gpu_offload_layers, context_length,
         "cache_type_v": flags["kv_cache_type"],
     }
 
-    import json
     config_json = json.dumps({"load": config}, indent=2)
 
     # Command: LM Studio is GUI, but lms CLI exists

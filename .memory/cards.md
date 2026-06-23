@@ -24,3 +24,7 @@
 **Issue:** Test suite ~26% coverage; `fail_under=100` in pyproject.toml not met.
 **Solution:** Added broad test modules (`test_estimator`, `test_detector`, `test_profiles`, `test_scanner`, `test_engine`, `test_tools`, `test_cli_helpers`, `test_coverage_gaps`, etc.) plus targeted edge-case tests in `tests/test_coverage_gaps.py`. 170 tests, 100% line coverage on `llmbeans/`.
 **Note:** `IgnoreSourceDir` dict helper used to exercise CLI branches where `source_dir` must stay empty; defensive platform branches marked `# pragma: no cover` where not testable on macOS CI host.
+
+## Review warnings batch (2026-06-22)
+**Issue:** Review listed import inconsistency, triplicated script_gen, dead Linux SSD path, uncached profiles JSON, stale root demo scripts, MLX repo guess, M1/M2 RAM mis-ID.
+**Solution:** Registry imports unified; canonical summary/scripts in `llmbeans/cli.py` with re-export; `scan` not alias; `_profiles_json()` lru_cache; subprocess mount resolution for Linux SSD; named estimator constants; tool warnings for MLX guess; `_apple_ram_type_fallback()`; root demo scripts updated; stale root `cli.py` removed. 178 tests, 100% coverage.

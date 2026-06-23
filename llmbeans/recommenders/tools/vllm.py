@@ -1,7 +1,7 @@
 # llmbeans/recommenders/tools/vllm.py
 """vLLM flag generator."""
 
-from llmbeans.recommenders.engine import register_tool
+from llmbeans.recommenders.registry import register_tool
 
 
 @register_tool("vllm")

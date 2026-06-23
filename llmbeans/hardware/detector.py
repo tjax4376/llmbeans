@@ -3,8 +3,10 @@
 
 import os
 import platform
+import re
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 
 from llmbeans.hardware.profiles import lookup_specs_for_detection
 
@@ -109,6 +111,52 @@ def detect_hardware() -> HardwareProfile | None:
     return profile
 
 
+def _linux_block_device_name(device_path: str) -> str:
+    """Map a /dev node (e.g. /dev/nvme0n1p2) to sysfs block name (nvme0n1)."""
+    name = Path(device_path).name
+    if name.startswith("nvme") and "p" in name:
+        return name.rsplit("p", 1)[0]
+    if name.startswith("mmcblk") and "p" in name:
+        return name.rsplit("p", 1)[0]
+    return re.sub(r"\d+$", "", name)
+
+
+def _linux_root_block_device() -> str | None:
+    """Return sysfs block device name backing the root mount."""
+    try:
+        result = subprocess.run(
+            ["findmnt", "-n", "-o", "SOURCE", "--target", "/"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return _linux_block_device_name(result.stdout.strip())
+    except Exception:
+        pass
+
+    try:
+        result = subprocess.run(
+            ["mountpoint", "-d", "/"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            return None
+        dev_id = result.stdout.strip()
+        for device in os.listdir("/sys/block/"):
+            try:
+                with open(f"/sys/block/{device}/dev") as f:
+                    if f.read().strip() == dev_id:
+                        return device
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return None
+
+
 def _detect_disk_is_ssd() -> bool:
     """Detect if the primary disk is an SSD.
     
@@ -129,13 +177,15 @@ def _detect_disk_is_ssd() -> bool:
                     if "Solid State" in line and "No" in line:
                         return False
         elif platform.system() == "Linux":  # pragma: no cover
-            # Check if root partition is on SSD using rotational flag
-            try:
-                with open("/sys/block/$(mountpoint -d / | cut -d'/' -f3)/queue/rotational", "r") as f:
-                    return f.read().strip() == "0"  # 0 means SSD (non-rotational)
-            except Exception:
-                # Fallback: check if any block device is non-rotational
-                for device in os.listdir("/sys/block/"):
+            device = _linux_root_block_device()
+            if device:
+                try:
+                    with open(f"/sys/block/{device}/queue/rotational", "r") as f:
+                        return f.read().strip() == "0"
+                except Exception:
+                    pass
+            # Fallback: check if any block device is non-rotational
+            for device in os.listdir("/sys/block/"):
                     if device.startswith(("sd", "nvme", "mmcblk")):
                         try:
                             with open(f"/sys/block/{device}/queue/rotational", "r") as f:

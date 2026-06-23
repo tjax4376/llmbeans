@@ -20,7 +20,7 @@ from llmbeans.models.scanner import (
     _scan_safetensors,
     detect_format,
     scan,
-    scan_model,
+    scan,
 )
 
 
@@ -289,7 +289,6 @@ def test_scan_routes_formats(tmp_path, monkeypatch):
     fake_info = MagicMock(name="gguf-model", architecture="llama")
     monkeypatch.setattr("llmbeans.models.scanner._scan_gguf", lambda source: fake_info)
     assert scan(str(gguf)) is fake_info
-    assert scan_model(str(gguf)) is fake_info
 
 
 def test_scan_unsupported_format(monkeypatch):

@@ -1,6 +1,6 @@
 #!/bin/bash
-# llmbeans generated script for gemma-4-e4b-it-OptiQ-4bit
+# llmbeans generated script for Qwen2.5-Coder-3B-Instruct-Q4_K_M
 # Tool: lmstudio
-# Context: 65536 | Threads: 10
+# Context: 32768 | Threads: 10
 
-gpu_layers="42" ctx_size="65536" n_threads="10" batch_size="512" kv_cache_type="q8_0" lms server start
+gpu_layers="36" ctx_size="32768" n_threads="10" batch_size="512" kv_cache_type="q8_0" lms server start

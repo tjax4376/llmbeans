@@ -20,7 +20,7 @@ from rich.table import Table
 from rich.prompt import Prompt, IntPrompt, Confirm
 from rich import box
 
-from llmbeans.models.scanner import scan_model, ModelInfo
+from llmbeans.models.scanner import scan, ModelInfo
 from llmbeans.hardware.detector import detect_hardware
 from llmbeans.hardware.profiles import load_profiles, HardwareProfileEntry, from_detection
 from llmbeans.recommenders.engine import recommend, Recommendation
@@ -658,7 +658,7 @@ def main():
     console.print(f"\n[dim]Scanning {model_path}...[/dim]")
 
     try:
-        model = scan_model(model_path)
+        model = scan(model_path)
     except Exception as e:
         console.print(f"[red]Error scanning model: {e}[/red]")
         sys.exit(1)
